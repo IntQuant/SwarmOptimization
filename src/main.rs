@@ -14,6 +14,7 @@ struct MyEguiApp {
     particle_amount: usize,
     settings: StepSettings,
     size_modifier: f32,
+    distribution: f32,
 }
 
 impl MyEguiApp {
@@ -30,6 +31,7 @@ impl MyEguiApp {
         Self {
             particle_amount: 128,
             size_modifier: 100.0,
+            distribution: 5.0,
             ..Self::default()
         }
     }
@@ -61,8 +63,9 @@ impl MyEguiApp {
             Self::labeled_drag_value(ui, "Коэфф. инерции:", &mut self.settings.inertia_factor, 0.1);
             Self::labeled_drag_value(ui, "Коэфф. своего лучшего ответа:", &mut self.settings.my_position_factor, 0.1);
             Self::labeled_drag_value(ui, "Коэфф. общего лучшего ответа:", &mut self.settings.swarm_position_factor, 0.1);
+            Self::labeled_drag_value(ui, "Начальное распределение частиц:", &mut self.distribution, 0.1);
             if ui.button("Создать оптимизатор").clicked() {
-                self.optimizer = Some(ParticleWorld::new(self.particle_amount));
+                self.optimizer = Some(ParticleWorld::new(self.particle_amount, self.distribution));
             }
         });
     }

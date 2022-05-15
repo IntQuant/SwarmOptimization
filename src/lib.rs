@@ -2,7 +2,8 @@ use std::iter;
 
 use na::SVector;
 use nalgebra as na;
-use rand::{Rng, thread_rng};
+use rand::Rng;
+use rand_pcg::Pcg64Mcg;
 
 pub type Vector<const D: usize> = SVector<f32, D>;
 
@@ -20,9 +21,9 @@ pub struct Particle<const D: usize> {
 }
 
 impl<const D: usize> Particle<D> {
-    fn new() -> Self {
+    fn new(rng: &mut impl Rng, distribution: f32) -> Self {
         Self {
-            position: Vector::from_fn(|_, _| {thread_rng().gen_range(-5.0..=5.0)}),
+            position: Vector::from_fn(|_, _| {rng.gen_range(-distribution..=distribution)}),
             speed: Vector::zeros(),
             best_position: Vector::zeros(),
             best_score: f32::INFINITY,
@@ -53,9 +54,10 @@ pub struct ParticleWorld<const D: usize> {
 }
 
 impl<const D: usize> ParticleWorld<D> {
-    pub fn new(particle_amount: usize) -> Self {
+    pub fn new(particle_amount: usize, distribution: f32) -> Self {
+        let mut rng = Pcg64Mcg::new(0xcafef00dd15ea5e5);
         Self {
-            particles: iter::repeat_with(|| {Particle::new()}).take(particle_amount).collect(),
+            particles: iter::repeat_with(|| {Particle::new(&mut rng, distribution)}).take(particle_amount).collect(),
             global_best_position: Vector::zeros(),
             global_best_score: f32::INFINITY,
         }
