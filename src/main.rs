@@ -15,6 +15,7 @@ struct MyEguiApp {
     settings: StepSettings,
     size_modifier: f32,
     distribution: f32,
+    story: Vec<(f32, Vector<2>)>,
 }
 
 impl MyEguiApp {
@@ -30,7 +31,7 @@ impl MyEguiApp {
         //cc.egui_ctx.set_pixels_per_point(2.0);
         Self {
             particle_amount: 128,
-            size_modifier: 100.0,
+            size_modifier: 2.0,
             distribution: 5.0,
             ..Self::default()
         }
@@ -66,6 +67,7 @@ impl MyEguiApp {
             Self::labeled_drag_value(ui, "Начальное распределение частиц:", &mut self.distribution, 0.1);
             if ui.button("Создать оптимизатор").clicked() {
                 self.optimizer = Some(ParticleWorld::new(self.particle_amount, self.distribution));
+                self.story.clear();
             }
         });
     }
@@ -75,10 +77,21 @@ impl MyEguiApp {
         egui::Window::new("Оптимизатор").show(ctx, |ui| {
             let (score, position) = opt.best_solution();
             ui.label(format!("Лучшее решение: {:} (x: {:}, y: {:})", score, position.x, position.y));
-            if ui.button("Шаг").clicked() {
+            let mut steps_pending = 0;
+            ui.horizontal(|ui| {
+                if ui.button("Сделать шаг").clicked() {
+                    steps_pending += 1;
+                }
+                if ui.button("Сделать 10 шагов").clicked() {
+                    steps_pending += 10;
+                }
+            });
+            for _ in 0..steps_pending {
                 opt.step(himmelblau, &self.settings);
+                self.story.push(opt.best_solution());
             }
-            Self::labeled_control(ui, "Масштаб:", egui::Slider::new(&mut self.size_modifier, 1.0..=1000.0));
+
+            Self::labeled_control(ui, "Масштаб:", egui::Slider::new(&mut self.size_modifier, 1.0..=10.0));
             if !ui.button("Сброс").clicked() {
                 self.optimizer = Some(opt);
             }
@@ -100,6 +113,24 @@ impl MyEguiApp {
             painter.circle_filled((pos-center).data.0[0].into() , 3.0, Color32::BLACK);
         }
     }
+
+    fn story_window(&mut self, ctx: &egui::Context) {
+        egui::Window::new("История").show(ctx, |ui| {
+            let row_height = ui.text_style_height(&egui::TextStyle::Body);
+            egui::ScrollArea::vertical().show_rows(ui, row_height, self.story.len(), |ui, row_range| {
+                egui::Grid::new("story_grid").num_columns(4).show(ui, |ui| {
+                    for row in row_range {
+                        let current = self.story[row];
+                        ui.label(format!("{}", row));
+                        ui.label(format!("{}", current.1.x));
+                        ui.label(format!("{}", current.1.y));
+                        ui.label(format!("{}", current.0));
+                        ui.end_row();
+                    }
+                });
+            })
+        });
+    }
 }
 
 impl eframe::App for MyEguiApp {
@@ -109,9 +140,10 @@ impl eframe::App for MyEguiApp {
             Some(opt) => {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     let painter = ui.painter();
-                    Self::draw_optimizer_state(opt, painter, self.size_modifier);
+                    Self::draw_optimizer_state(opt, painter, f32::powf(10.0, self.size_modifier));
                 });
                 self.optimizer_control_window(ctx);
+                self.story_window(ctx);
             },
             None => {
                 egui::CentralPanel::default().show(ctx, |_ui| {});
